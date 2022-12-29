@@ -46,7 +46,7 @@ net = cv.dnn.readNetFromCaffe('deploy.prototxt','hed_pretrained_bsds.caffemodel'
 cv.dnn_registerLayer("Crop", CropLayer)
 
 # load the input image and grab the dimension ->
-image = cv.imread('./Cellimages/Melanoma/Data3 (80).png')
+image = cv.imread('./DataInput.png')
 (H, W) = image.shape[:2]
 
 print("Height: ",H)
@@ -72,5 +72,5 @@ plt.imshow(image)
 # Show Output Holistically-Nested Edge Detection 
 plt.imshow(hed)
 
-cv.imwrite('hedTrain3(81).jpg',hed)
+cv.imwrite('Output.png',hed)
 
