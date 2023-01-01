@@ -1,5 +1,7 @@
 import tkinter as tk
 import cv2 as cv
+import tensorflow as tf
+import numpy as np
 
 from tkinter import ttk
 from tkinter import filedialog
@@ -45,11 +47,15 @@ class DetectionFrame():
     def __init__(self, root) -> None:
         self.filename = None
         self.imageOutputFrame = None
+        self.arrow = None
+        self.classificationLabel = None
 
         # load model
         print("[INFO] loading edge detector...")
-        net = cv.dnn.readNetFromCaffe('deploy.prototxt',
-                                      'hed_pretrained_bsds.caffemodel')
+        net = cv.dnn.readNetFromCaffe("deploy.prototxt",
+                                      "hed_pretrained_bsds.caffemodel")
+        model = tf.keras.models.load_model("model_resnet50.h5")
+
         print("Model and config loaded")
         # register new layer with the model ->
         cv.dnn_registerLayer("Crop", CropLayer)
@@ -66,7 +72,6 @@ class DetectionFrame():
         actionFrame = ttk.Frame(detectionFrame, padding=30)
         actionFrame.grid(column=0, row=2, columnspan=4, sticky=tk.W)
 
-        # filenameInit = "/home/julius/Projects/Skripsi/DataInput.png"
         fileNameLabel = ttk.Label(actionFrame, text="File Name : ")
         fileNameLabel.grid(column=0, row=1, pady=30, columnspan=3, sticky=tk.W)
         imageInputFrame = ttk.Frame(detectionFrame,
@@ -83,8 +88,8 @@ class DetectionFrame():
             filename = filedialog.askopenfilename(
                 initialdir="/home/julius/Projects/Skripsi",
                 title="Select a File",
-                filetypes=(("PNG files", "*.png"), ("JPG files", "*.jpg"),
-                           ("All files", "*.*")))
+                filetypes=(("All files", "*.*"), ("PNG files", "*.png"),
+                           ("JPG files", "*.jpg")))
             if filename != "":
                 self.filename = filename
                 # Change label contents
@@ -100,7 +105,19 @@ class DetectionFrame():
 
                 if self.imageOutputFrame:
                     self.imageOutputFrame.destroy()
+                if self.arrow:
                     self.arrow.destroy()
+                if self.classificationLabel:
+                    self.classificationLabel.destroy()
+
+        def getClassificationLabel(predictedValue):
+            if (predictedValue == 0):
+                return "KarsinomaSB"
+            if (predictedValue == 1):
+                return "KarsinomaSS"
+            if (predictedValue == 2):
+                return "Melanoma"
+            return "Lainnya"
 
         def process():
             if self.filename == None:
@@ -109,9 +126,6 @@ class DetectionFrame():
             # load the input image and grab the dimension ->
             image = cv.imread(self.filename)
             (H, W) = image.shape[:2]
-
-            print("Height: ", H)
-            print("Width: ", W)
 
             # Construct a blob out of the input image for the Holistically-Nested Edge Detector ->
             blob = cv.dnn.blobFromImage(image,
@@ -132,24 +146,43 @@ class DetectionFrame():
             hed = (255 * hed).astype("uint8")
             print("[INFO] Calculation done")
 
-            cv.dnn_unregisterLayer("Crop")
-
             cv.imwrite("output.png", hed)
+
             img = Image.open("output.png")
-            imgResize = img.resize((250, 250))
+            imgResize = img.resize((255, 255))
             self.outputFile = ImageTk.PhotoImage(imgResize)
 
             self.arrow = ttk.Label(detectionFrame, text="->")
             self.arrow.grid(column=1, row=3, padx=30)
             self.imageOutputFrame = ttk.Frame(detectionFrame,
-                                              height=250,
-                                              width=250,
+                                              height=255,
+                                              width=255,
                                               borderwidth=2,
                                               relief="solid")
             self.imageOutputFrame.grid(column=2, row=3)
             outputImageFile = ttk.Label(self.imageOutputFrame,
                                         image=self.outputFile)
             outputImageFile.pack(expand=True)
+
+            tfImage = tf.keras.utils.load_img("output.png",
+                                              target_size=(224, 224))
+            tfImageArray = tf.keras.utils.img_to_array(tfImage)
+
+            # Noralizing the image pixels values
+            tfImageArray = tfImageArray / 255
+
+            print(f"tfImageArray: {tfImageArray}")
+
+            # Expand the Dimensions of the image
+            tfImageArray = np.expand_dims(tfImageArray, axis=0)
+
+            predictedResult = np.argmax(model.predict(tfImageArray), axis=1)
+            print(f"Final value: {predictedResult}")
+            self.classificationLabel = ttk.Label(
+                detectionFrame,
+                text=getClassificationLabel(predictedResult),
+                font=("arial", 16, "bold"))
+            self.classificationLabel.grid(column=0, row=4)
 
         ttk.Button(actionFrame,
                    text="Select File",
@@ -215,7 +248,7 @@ class App(tk.Tk):
         tabs.add(tab3, text="About Me")
         tabs.add(tab4, text="Help")
         tabs.pack(expand=1, fill=tk.BOTH)
-        tabs.select(tab2.tab)
+        tabs.select(tab1)
 
 
 if __name__ == "__main__":
