@@ -334,3 +334,14 @@ plot_confusion_matrix(cm, target_names,title='Confusion Matrix')
 #Print Classification Report
 print('Classification Report')
 print(classification_report(test_set.classes, Y_pred, target_names=target_names))
+
+yh = model.predict(img_data)
+for i in range(len(img_data)):
+  if(np.argmax(model.predict(img_data)) == 0):
+      print("KarsiomaSB")
+  elif(np.argmax(model.predict(img_data)) == 1 ) :
+      print("KarsiomaSS")
+  elif(np.argmax(model.predict(img_data)) == 2 ) :
+      print("Melanoma")
+  else:
+      print("Lainya")
